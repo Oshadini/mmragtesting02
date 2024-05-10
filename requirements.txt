@@ -5,7 +5,7 @@ pydantic
 lxml
 langchain-google-genai
 google.generativeai
-chromadb==0.4.15
+chromadb==0.4.18
 pysqlite3-binary
 google-generativeai
 langsmith 
