@@ -467,6 +467,7 @@ if pr ==True:
 
   query = symbol
   docs = retriever_multi_vector_img.get_relevant_documents(query, limit=1)
+  st.write(docs)
 
   #len(docs)
   #docs
@@ -499,8 +500,9 @@ if pr ==True:
           display.display(HTML(f'<img src="data:image/jpeg;base64,{docs[i]}">'))
 
           base64_image = docs[i]
+          st.write(base64_image)
           image_data = base64.b64decode(base64_image)
-
+          st.write(image_data)
           # Display the image
           #img = Image.open(BytesIO(image_data))
           #img.show()
