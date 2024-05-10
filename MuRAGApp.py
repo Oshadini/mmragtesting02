@@ -429,7 +429,7 @@ if uploaded_file is not None:
     # Create RAG chain
     chain_multimodal_rag = multi_modal_rag_chain(retriever_multi_vector_img)
             
-    query = """Comparison of financial rates across various categories"""
+    query = """give an explaination on the comparison of financial rates across various categories from FY17 to August 2022."""
     docs = retriever_multi_vector_img.get_relevant_documents(query, limit=1)    
         
     markdown_text = chain_multimodal_rag.invoke(query)
