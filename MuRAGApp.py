@@ -279,13 +279,7 @@ if uploaded_file is not None:
         return retriever
 
 
-    from streamlit_chromadb_connection.chromadb_connection import ChromadbConnection
 
-    configuration = {
-        "client_type": "PersistentClient",
-        "path": "/tmp/.chroma"
-    }
-    
 
     
     # The vectorstore to use to index the summaries
@@ -297,13 +291,7 @@ if uploaded_file is not None:
     )
 
 
-    collection_name = "mm_rag_mistral"
-    
-    conn = st.experimental_connection("chromadb",
-                                    type=ChromaDBConnection,
-                                    **configuration)
-    documents_collection_df = conn.get_collection_data(collection_name)
-    st.dataframe(documents_collection_df)
+
 
     # Create retriever
     retriever_multi_vector_img = create_multi_vector_retriever(
