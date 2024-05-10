@@ -242,9 +242,9 @@ if uploaded_file is not None:
     def create_multi_vector_retriever(
     vectorstore, text_summaries, texts, table_summaries, tables, image_summaries, images
     ):
-    """
-    Create retriever that indexes summaries, but returns raw images or texts
-    """
+        """
+        Create retriever that indexes summaries, but returns raw images or texts
+        """
 
         # Initialize the storage layer
         store = InMemoryStore()
