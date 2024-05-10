@@ -278,7 +278,8 @@ if uploaded_file is not None:
             add_documents(retriever, image_summaries, images)
         return retriever
 
-    import streamlit as st
+
+    from streamlit_chromadb_connection.chromadb_connection import ChromadbConnection
 
     configuration = {
         "client_type": "PersistentClient",
