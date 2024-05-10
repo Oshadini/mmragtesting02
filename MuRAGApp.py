@@ -298,14 +298,157 @@ if uploaded_file is not None:
         img_base64_list,
     )
 
-    st.write(retriever_multi_vector_img.vectorstore[0])
+    def looks_like_base64(sb):
+        """Check if the string looks like base64"""
+        return re.match("^[A-Za-z0-9+/]+[=]{0,2}$", sb) is not None
+
+
+    def is_image_data(b64data):
+        """
+        Check if the base64 data is an image by looking at the start of the data
+        """
+        image_signatures = {
+            b"\xFF\xD8\xFF": "jpg",
+            b"\x89\x50\x4E\x47\x0D\x0A\x1A\x0A": "png",
+            b"\x47\x49\x46\x38": "gif",
+            b"\x52\x49\x46\x46": "webp",
+        }
+        try:
+            header = base64.b64decode(b64data)[:8]  # Decode and get the first 8 bytes
+            for sig, format in image_signatures.items():
+                if header.startswith(sig):
+                    return True
+            return False
+        except Exception:
+            return False
+    
+    def resize_base64_image(base64_string, size=(128, 128)):
+        """
+        Resize an image encoded as a Base64 string
+        """
+        # Decode the Base64 string
+        img_data = base64.b64decode(base64_string)
+        img = Image.open(io.BytesIO(img_data))
+    
+        # Resize the image
+        resized_img = img.resize(size, Image.LANCZOS)
+    
+        # Save the resized image to a bytes buffer
+        buffered = io.BytesIO()
+        resized_img.save(buffered, format=img.format)
+        # Encode the resized image to Base64
+        return base64.b64encode(buffered.getvalue()).decode("utf-8")
+    
+    #context creation
+    def split_image_text_types(docs):
+        """
+        Split base64-encoded images and texts
+        """
+        b64_images = []
+        texts = []
+        for doc in docs:
+            # Check if the document is of type Document and extract page_content if so
+            if isinstance(doc, Document):
+                doc = doc.page_content
+            if looks_like_base64(doc) and is_image_data(doc):
+                doc = resize_base64_image(doc, size=(1300, 600))
+                b64_images.append(doc)
+            else:
+                texts.append(doc)
+        if len(b64_images) > 0:
+            return {"images": b64_images[:1], "texts": []}
+        return {"images": b64_images, "texts": texts}
+    
+    
+    #response generation
+    def img_prompt_func(data_dict):
+        """
+        Join the context into a single string
+        """
+        formatted_texts = "\n".join(data_dict["context"]["texts"])
+        messages = []
+    
+        # Adding the text for analysis
+        text_message = {
+            "type": "text",
+            "text": (
+                "You are an AI scientist tasking with providing factual answers.\n"
+                "You will be given a mixed of text, tables, and image(s) usually of charts or graphs.\n"
+                "Use this information to provide answers related to the user question. \n"
+                "Final answer should be easily readable and structured. \n"
+                f"User-provided question: {data_dict['question']}\n\n"
+                "Text and / or tables:\n"
+                f"{formatted_texts}"
+            ),
+        }
+        messages.append(text_message)
+        # Adding image(s) to the messages if present
+        if data_dict["context"]["images"]:
+            for image in data_dict["context"]["images"]:
+                image_message = {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{image}"},
+                }
+                messages.append(image_message)
+        return [HumanMessage(content=messages)]
+    
+    def multi_modal_rag_chain(retriever):
+        """
+        Multi-modal RAG chain
+        """
+    
+        # Multi-modal LLM
+        model = ChatGoogleGenerativeAI(model="gemini-1.5-pro-latest", max_output_tokens=1024)
+        #try:
+          #model = ChatGoogleGenerativeAI(model="gemini-pro-vision", max_output_tokens=1024)
+        #except Exception as e:
+          #model = ChatGoogleGenerativeAI(model="gemini-pro", max_output_tokens=1024)
+    
+        #model = ChatOpenAI(model="gpt-4-vision-preview", openai_api_key = openai.api_key, max_tokens=1024)
+    
+        # RAG pipeline
+        chain = (
+            {
+                "context": retriever | RunnableLambda(split_image_text_types),
+                "question": RunnablePassthrough(),
+            }
+            | RunnableLambda(img_prompt_func)
+            | model
+            | StrOutputParser()
+        )
+    
+        return chain
+    
+    
+    # Create RAG chain
+    chain_multimodal_rag = multi_modal_rag_chain(retriever_multi_vector_img)
+            
+    query = """Comparison of corporate bond yields with bank lending rates 1Y MCLR (PSBs)"""
+    docs = retriever_multi_vector_img.get_relevant_documents(query, limit=1)    
         
-    
-    
+    markdown_text = chain_multimodal_rag.invoke(query)
+    st.write(markdown_text)   
         
+        
+    found_image = False  # Flag variable to track if an image has been found
+
+    for i in range(len(docs)):
+        if docs[i].startswith('/9j') and not found_image:
+            display.display(HTML(f'<img src="data:image/jpeg;base64,{docs[i]}">'))
+    
+            base64_image = docs[i]
+            image_data = base64.b64decode(base64_image)
+    
+            # Display the image
+            img = Image.open(BytesIO(image_data))
+            img.show()
+            found_image = True  # Set the flag to True to indicate that an image has been found
     
     
-    
+        #elif not docs[i].startswith('/9j'):
+            # Display the document in the notebook
+            #ipy_display(docs[i])
+
     
 
 
