@@ -239,8 +239,67 @@ if uploaded_file is not None:
     st.write(img_base64_list)
     st.write(image_summaries)
     
+    def create_multi_vector_retriever(
+    vectorstore, text_summaries, texts, table_summaries, tables, image_summaries, images
+    ):
+    """
+    Create retriever that indexes summaries, but returns raw images or texts
+    """
+
+        # Initialize the storage layer
+        store = InMemoryStore()
+        id_key = "doc_id"
     
+        # Create the multi-vector retriever
+        retriever = MultiVectorRetriever(
+            vectorstore=vectorstore,
+            docstore=store,
+            id_key=id_key,
+        )
+        # Helper function to add documents to the vectorstore and docstore
+        def add_documents(retriever, doc_summaries, doc_contents):
+            doc_ids = [str(uuid.uuid4()) for _ in doc_contents]
+            summary_docs = [
+                Document(page_content=s, metadata={id_key: doc_ids[i]})
+                for i, s in enumerate(doc_summaries)
+            ]
+            retriever.vectorstore.add_documents(summary_docs)
+            retriever.docstore.mset(list(zip(doc_ids, doc_contents)))
     
+        # Add texts, tables, and images
+        # Check that text_summaries is not empty before adding
+        if text_summaries:
+            add_documents(retriever, text_summaries, texts)
+        # Check that table_summaries is not empty before adding
+        if table_summaries:
+            add_documents(retriever, table_summaries, tables)
+        # Check that image_summaries is not empty before adding
+        if image_summaries:
+            add_documents(retriever, image_summaries, images)
+        return retriever
+    
+    # The vectorstore to use to index the summaries
+    vectorstore = Chroma(
+        collection_name="mm_rag_mistral",
+        #embedding_function=GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+        embedding_function=OpenAIEmbeddings(openai_api_key=openai.api_key)
+    
+    )
+
+
+    # Create retriever
+    retriever_multi_vector_img = create_multi_vector_retriever(
+        vectorstore,
+        text_summaries,
+        texts,
+        table_summaries,
+        tables,
+        image_summaries,
+        img_base64_list,
+    )
+
+    st.write(retriever_multi_vector_img.vectorstore[0])
+        
     
     
         
